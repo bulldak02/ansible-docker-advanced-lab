@@ -1,0 +1,31 @@
+---
+- name: 복원 대상 백업 파일 확인
+  ansible.builtin.stat:
+    path: "{{ backup_dir }}/{{ restore_filename }}"
+  register: restore_file
+
+- name: 복원 파일 존재 여부 검증
+  ansible.builtin.assert:
+    that:
+      - restore_file.stat.exists
+      - restore_file.stat.size | int > 0
+    fail_msg: "{{ backup_dir }}/{{ restore_filename }} 파일이 없습니다."
+
+- name: MariaDB 백업 복원 실행
+  community.docker.docker_container_exec:
+    container: "{{ db_container_name }}"
+    command: >-
+      /bin/sh -c 'mariadb -uroot -p"$MARIADB_ROOT_PASSWORD"
+      "${MARIADB_DATABASE}" < "/backup/{{ restore_filename }}"'
+  register: restore_result
+  changed_when: true
+  no_log: "{{ hide_sensitive_logs | bool }}"
+
+- name: 복원 명령 성공 확인
+  ansible.builtin.assert:
+    that:
+      - restore_result.rc == 0
+    success_msg: "{{ restore_filename }} 복원 완료"
+
+- name: 복원 후 서비스 검증
+  ansible.builtin.include_tasks: verify.yml

@@ -1,0 +1,56 @@
+---
+- name: MariaDB 컨테이너 생성
+  community.docker.docker_container:
+    name: "{{ db_container_name }}"
+    image: "{{ db_image }}"
+    state: started
+    restart_policy: unless-stopped
+    stop_timeout: 30
+    env:
+      MARIADB_ROOT_PASSWORD: "{{ db_root_password }}"
+      MARIADB_DATABASE: "{{ db_name }}"
+      MARIADB_USER: "{{ db_app_user }}"
+      MARIADB_PASSWORD: "{{ db_app_password }}"
+    volumes:
+      - "{{ db_volume_name }}:/var/lib/mysql"
+      - "{{ backup_dir }}:/backup:Z"
+    networks:
+      - name: "{{ docker_network_name }}"
+        aliases:
+          - db
+    networks_cli_compatible: true
+    published_ports: []
+    memory: "{{ db_memory }}"
+    cpus: "{{ db_cpus }}"
+    security_opts:
+      - no-new-privileges:true
+    cap_drop:
+      - AUDIT_WRITE
+      - MKNOD
+      - NET_RAW
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          mariadb-admin ping -h 127.0.0.1 -uroot
+          -p"$MARIADB_ROOT_PASSWORD" --silent
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    labels:
+      managed_by: ansible
+      project: "{{ project_name }}"
+      tier: database
+  no_log: "{{ hide_sensitive_logs | bool }}"
+
+- name: MariaDB health 상태 대기
+  community.docker.docker_container_info:
+    name: "{{ db_container_name }}"
+  register: db_container_info
+  until: >-
+    db_container_info.exists and
+    (db_container_info.container.State.Health.Status | default('')) == 'healthy'
+  retries: 30
+  delay: 5
+  changed_when: false

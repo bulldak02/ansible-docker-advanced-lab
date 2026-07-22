@@ -1,0 +1,7 @@
+# group_vars/docker_hosts/main.yml
+---
+db_name: labdb
+db_user: labuser
+
+db_root_password: "{{ vault_db_root_password }}"
+db_password: "{{ vault_db_password }}"

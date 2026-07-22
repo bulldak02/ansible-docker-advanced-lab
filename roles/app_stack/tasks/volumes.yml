@@ -1,0 +1,8 @@
+---
+- name: MariaDB 영속 데이터 볼륨 생성
+  community.docker.docker_volume:
+    name: "{{ db_volume_name }}"
+    labels:
+      managed_by: ansible
+      project: "{{ project_name }}"
+    state: present

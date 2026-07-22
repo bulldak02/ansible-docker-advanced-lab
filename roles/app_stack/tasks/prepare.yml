@@ -1,0 +1,21 @@
+---
+- name: 프로젝트 디렉터리 생성
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ stack_root }}", mode: "0755" }
+    - { path: "{{ app_build_dir }}", mode: "0755" }
+    - { path: "{{ nginx_dir }}", mode: "0755" }
+    - { path: "{{ backup_dir }}", mode: "0700" }
+
+- name: Flask 애플리케이션 빌드 컨텍스트 배포
+  ansible.builtin.copy:
+    src: app/
+    dest: "{{ app_build_dir }}/"
+    owner: root
+    group: root
+    mode: "0644"

@@ -1,0 +1,5 @@
+*.retry
+*.log
+.vault_pass
+secrets/
+group_vars/docker_hosts/vault.yml

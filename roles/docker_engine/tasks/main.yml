@@ -1,0 +1,108 @@
+---
+- name: RHEL 9 계열인지 확인
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.os_family == 'RedHat'
+      - ansible_facts.distribution_major_version | int == 9
+    fail_msg: "이 실습은 RHEL 9 계열을 기준으로 작성되었습니다."
+
+- name: 충돌 가능 패키지 제거
+  ansible.builtin.dnf:
+    name: "{{ conflicting_docker_packages }}"
+    state: absent
+
+- name: Docker CE 저장소 파일 설치
+  ansible.builtin.get_url:
+    url: "{{ docker_repo_url }}"
+    dest: /etc/yum.repos.d/docker-ce.repo
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Docker Engine과 플러그인 설치
+  ansible.builtin.dnf:
+    name: "{{ docker_packages }}"
+    state: present
+    update_cache: true
+
+- name: Python pip 설치
+  ansible.builtin.dnf:
+    name: python3-pip
+    state: present
+
+- name: Ansible Docker 모듈 의존 패키지 설치
+  ansible.builtin.pip:
+    name: "{{ docker_python_packages }}"
+    executable: pip3
+    state: present
+
+- name: Docker daemon 설정 디렉터리 생성
+  ansible.builtin.file:
+    path: /etc/docker
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Docker daemon 보안 및 로그 설정 배포
+  ansible.builtin.copy:
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      {
+        "live-restore": true,
+        "userland-proxy": false,
+        "log-driver": "json-file",
+        "log-opts": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      }
+  notify: Docker 재시작
+
+- name: Docker 서비스 활성화 및 시작
+  ansible.builtin.systemd_service:
+    name: docker
+    enabled: true
+    state: started
+
+- name: Docker 관련 handler 즉시 반영
+  ansible.builtin.meta: flush_handlers
+
+- name: 운영 사용자 docker 그룹 추가
+  ansible.builtin.user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: true
+  when: ansible_user != 'root'
+
+- name: firewalld 설치
+  ansible.builtin.dnf:
+    name: firewalld
+    state: present
+
+- name: firewalld 활성화
+  ansible.builtin.systemd_service:
+    name: firewalld
+    enabled: true
+    state: started
+
+- name: Web 공개 포트 허용
+  ansible.posix.firewalld:
+    port: "{{ web_published_port }}/tcp"
+    permanent: true
+    immediate: true
+    state: enabled
+
+- name: Docker 데몬 정보 확인
+  community.docker.docker_host_info:
+  register: docker_host_info
+  changed_when: false
+
+- name: Docker Engine 준비 상태 검증
+  ansible.builtin.assert:
+    that:
+      - docker_host_info.host_info.ServerVersion is defined
+    success_msg: "Docker Engine {{ docker_host_info.host_info.ServerVersion }} 준비 완료"

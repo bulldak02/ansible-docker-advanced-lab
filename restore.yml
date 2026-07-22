@@ -1,0 +1,19 @@
+---
+- name: MariaDB 백업 복원
+  hosts: docker_hosts
+  become: true
+  gather_facts: false
+
+  pre_tasks:
+    - name: 복원 파일명 입력 확인
+      ansible.builtin.assert:
+        that:
+          - restore_filename is defined
+          - restore_filename | basename == restore_filename
+          - restore_filename.endswith('.sql')
+        fail_msg: >-
+          -e restore_filename=labdb-YYYYMMDDTHHMMSS.sql 형식으로 지정하십시오.
+
+  roles:
+    - role: app_stack
+      tasks_from: restore

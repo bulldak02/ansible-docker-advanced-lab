@@ -1,0 +1,70 @@
+---
+- name: Blue-Green Flask 컨테이너 생성
+  community.docker.docker_container:
+    name: "{{ app_container_prefix }}_{{ item.key }}"
+    image: "{{ app_image_name }}:{{ item.value.version }}"
+    state: started
+    restart_policy: unless-stopped
+    stop_timeout: 15
+    user: "10001:10001"
+    env:
+      APP_COLOR: "{{ item.key }}"
+      APP_VERSION: "{{ item.value.version }}"
+      APP_MESSAGE: "{{ item.value.message }}"
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_NAME: "{{ db_name }}"
+      DB_USER: "{{ db_app_user }}"
+      DB_PASSWORD: "{{ db_app_password }}"
+    networks:
+      - name: "{{ docker_network_name }}"
+        aliases:
+          - "app_{{ item.key }}"
+    networks_cli_compatible: true
+    published_ports: []
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    memory: "{{ app_memory }}"
+    cpus: "{{ app_cpus }}"
+    pids_limit: 128
+    cap_drop:
+      - ALL
+    security_opts:
+      - no-new-privileges:true
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    labels:
+      managed_by: ansible
+      project: "{{ project_name }}"
+      tier: application
+      release_color: "{{ item.key }}"
+      release_version: "{{ item.value.version }}"
+  loop: "{{ app_releases | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}={{ item.value.version }}"
+  no_log: "{{ hide_sensitive_logs | bool }}"
+
+- name: 각 애플리케이션 health 상태 대기
+  community.docker.docker_container_info:
+    name: "{{ app_container_prefix }}_{{ item.key }}"
+  register: app_container_info
+  until: >-
+    app_container_info.exists and
+    (app_container_info.container.State.Health.Status | default('')) == 'healthy'
+  retries: 30
+  delay: 5
+  changed_when: false
+  loop: "{{ app_releases | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"

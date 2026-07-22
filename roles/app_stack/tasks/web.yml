@@ -1,0 +1,60 @@
+---
+- name: Nginx 설정 렌더링
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: "{{ nginx_conf_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Web 컨테이너 재시작
+
+- name: Nginx Reverse Proxy 컨테이너 생성
+  community.docker.docker_container:
+    name: "{{ web_container_name }}"
+    image: "{{ nginx_image }}"
+    state: started
+    restart_policy: unless-stopped
+    stop_timeout: 10
+    entrypoint:
+      - /usr/sbin/nginx
+      - -g
+      - daemon off;
+    volumes:
+      - "{{ nginx_conf_path }}:/etc/nginx/nginx.conf:ro,Z"
+    networks:
+      - name: "{{ docker_network_name }}"
+    networks_cli_compatible: true
+    published_ports:
+      - "{{ web_bind_address }}:{{ web_published_port }}:80"
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx:rw,noexec,nosuid,size=32m
+      - /var/run:rw,noexec,nosuid,size=8m
+      - /tmp:rw,noexec,nosuid,size=16m
+    memory: "{{ web_memory }}"
+    cpus: "{{ web_cpus }}"
+    pids_limit: 128
+    cap_drop:
+      - ALL
+    capabilities:
+      - CHOWN
+      - NET_BIND_SERVICE
+      - SETGID
+      - SETUID
+    security_opts:
+      - no-new-privileges:true
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - wget -qO- http://127.0.0.1/health >/dev/null 2>&1
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    labels:
+      managed_by: ansible
+      project: "{{ project_name }}"
+      tier: web
+
+- name: Web 관련 handler 즉시 반영
+  ansible.builtin.meta: flush_handlers

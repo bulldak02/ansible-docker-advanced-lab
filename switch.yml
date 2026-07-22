@@ -1,0 +1,18 @@
+---
+- name: Blue-Green 트래픽 전환
+  hosts: docker_hosts
+  become: true
+  gather_facts: false
+
+  pre_tasks:
+    - name: target_color 입력 확인
+      ansible.builtin.assert:
+        that:
+          - target_color is defined
+          - target_color in app_releases
+        fail_msg: >-
+          -e target_color=blue 또는 -e target_color=green 값을 지정하십시오.
+
+  roles:
+    - role: app_stack
+      tasks_from: switch

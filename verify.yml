@@ -1,0 +1,9 @@
+---
+- name: Docker 3-Tier 서비스 검증
+  hosts: docker_hosts
+  become: true
+  gather_facts: false
+
+  roles:
+    - role: app_stack
+      tasks_from: verify

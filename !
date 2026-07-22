@@ -1,0 +1,41 @@
+user nginx;
+worker_processes auto;
+pid /var/run/nginx.pid;
+
+error_log /dev/stderr warn;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                    '$status $body_bytes_sent "$http_referer" '
+                    '"$http_user_agent" "$http_x_forwarded_for" '
+                    'upstream=$upstream_addr request_time=$request_time';
+
+    access_log /dev/stdout main;
+    sendfile on;
+    keepalive_timeout 65;
+    server_tokens off;
+
+    upstream app_backend {
+
+#opt/ansible-docker-lab/nginx/nginx.conf	    
+    server lab_app_blue:8000 max_fails=2 fail_timeout=5s;
+    server lab_app_green:8000 backup;
+
+    }
+
+    server {
+        listen 80;
+        server_name _;
+
+        location / {
+            proxy_pass http://app_backend;
+        }
+    }
+}

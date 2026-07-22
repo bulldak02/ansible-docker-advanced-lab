@@ -1,0 +1,17 @@
+---
+- name: Blue-Green 애플리케이션 이미지 빌드
+  community.docker.docker_image_build:
+    name: "{{ app_image_name }}:{{ item.value.version }}"
+    path: "{{ app_build_dir }}"
+    dockerfile: Dockerfile
+  loop: "{{ app_releases | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}={{ item.value.version }}"
+
+- name: MariaDB 이미지 확보
+  community.docker.docker_image_pull:
+    name: "{{ db_image }}"
+
+- name: Nginx 이미지 확보
+  community.docker.docker_image_pull:
+    name: "{{ nginx_image }}"

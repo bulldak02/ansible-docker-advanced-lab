@@ -1,0 +1,66 @@
+---
+# 프로젝트 공통 설정
+project_name: lab3tier
+stack_root: /opt/ansible-docker-lab
+app_build_dir: "{{ stack_root }}/app"
+nginx_dir: "{{ stack_root }}/nginx"
+nginx_conf_path: "{{ nginx_dir }}/nginx.conf"
+backup_dir: "{{ stack_root }}/backup"
+
+# 외부 공개 포트
+web_bind_address: "0.0.0.0"
+web_published_port: 8080
+
+# Docker 네트워크
+docker_network_name: lab_3tier_net
+docker_network_subnet: 172.30.0.0/24
+docker_network_gateway: 172.30.0.1
+
+# 이미지 및 컨테이너 이름
+db_image: mariadb:11.4
+nginx_image: nginx:1.27-alpine
+app_image_name: lab-app
+
+db_container_name: lab_db
+web_container_name: lab_web
+app_container_prefix: lab_app
+
+db_volume_name: lab_db_data
+
+# 데이터베이스 설정
+db_name: labdb
+db_app_user: labuser
+
+# 비밀번호는 환경 변수 또는 Ansible Vault로 공급합니다.
+# Vault 변수를 정의하면 환경 변수보다 우선합니다.
+db_root_password: >-
+  {{ vault_db_root_password |
+     default(lookup('env', 'LAB_DB_ROOT_PASSWORD'), true) }}
+db_app_password: >-
+  {{ vault_db_app_password |
+     default(lookup('env', 'LAB_DB_APP_PASSWORD'), true) }}
+
+# Blue-Green 릴리스 정의
+app_releases:
+  blue:
+    version: "1.0.0"
+    message: "Blue 안정 버전"
+  green:
+    version: "2.0.0"
+    message: "Green 신규 버전"
+
+# 현재 서비스 트래픽을 받을 색상
+active_color: blue
+
+# 보안 및 리소스 제한
+hide_sensitive_logs: true
+app_memory: 256M
+app_cpus: 0.50
+db_memory: 768M
+db_cpus: 1.00
+web_memory: 128M
+web_cpus: 0.25
+
+# 삭제 시 데이터 볼륨 보존이 기본값입니다.
+delete_data: false
+remove_images_on_destroy: false

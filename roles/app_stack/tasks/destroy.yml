@@ -1,0 +1,47 @@
+---
+- name: Web 컨테이너 삭제
+  community.docker.docker_container:
+    name: "{{ web_container_name }}"
+    state: absent
+    force_kill: true
+
+- name: Blue-Green 애플리케이션 컨테이너 삭제
+  community.docker.docker_container:
+    name: "{{ app_container_prefix }}_{{ item.key }}"
+    state: absent
+    force_kill: true
+  loop: "{{ app_releases | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+- name: DB 컨테이너 삭제
+  community.docker.docker_container:
+    name: "{{ db_container_name }}"
+    state: absent
+    force_kill: true
+
+- name: Docker 네트워크 삭제
+  community.docker.docker_network:
+    name: "{{ docker_network_name }}"
+    state: absent
+
+- name: DB 데이터 볼륨 삭제
+  community.docker.docker_volume:
+    name: "{{ db_volume_name }}"
+    state: absent
+  when: delete_data | bool
+
+- name: 실습 이미지 삭제
+  community.docker.docker_image_remove:
+    name: "{{ app_image_name }}:{{ item.value.version }}"
+    force: true
+  loop: "{{ app_releases | dict2items }}"
+  loop_control:
+    label: "{{ item.value.version }}"
+  when: remove_images_on_destroy | bool
+
+- name: 프로젝트 설정 디렉터리 삭제
+  ansible.builtin.file:
+    path: "{{ stack_root }}"
+    state: absent
+  when: delete_data | bool

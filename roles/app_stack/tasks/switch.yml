@@ -1,0 +1,31 @@
+---
+- name: 전환 대상 컨테이너 상태 확인
+  community.docker.docker_container_info:
+    name: "{{ app_container_prefix }}_{{ target_color }}"
+  register: target_container
+  changed_when: false
+
+- name: 전환 대상이 healthy 상태인지 검증
+  ansible.builtin.assert:
+    that:
+      - target_container.exists
+      - target_container.container.State.Running
+      - (target_container.container.State.Health.Status | default('')) == 'healthy'
+    fail_msg: "{{ target_color }} 릴리스가 healthy 상태가 아니므로 전환을 중단합니다."
+
+- name: Nginx upstream을 대상 릴리스로 전환
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: "{{ nginx_conf_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  vars:
+    effective_active_color: "{{ target_color }}"
+  notify: Web 컨테이너 재시작
+
+- name: Nginx 전환 즉시 반영
+  ansible.builtin.meta: flush_handlers
+
+- name: 전환 결과 검증
+  ansible.builtin.include_tasks: verify.yml

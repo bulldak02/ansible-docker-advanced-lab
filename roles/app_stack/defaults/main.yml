@@ -1,0 +1,10 @@
+---
+# role 단독 실행 시 사용할 최소 기본값
+app_releases:
+  blue:
+    version: "1.0.0"
+    message: "Blue release"
+  green:
+    version: "2.0.0"
+    message: "Green release"
+active_color: blue

@@ -1,0 +1,6 @@
+---
+# 다음 파일을 vault.yml로 복사한 후 암호화하십시오.
+# cp group_vars/docker_hosts/vault.yml.example group_vars/docker_hosts/vault.yml
+# ansible-vault encrypt group_vars/docker_hosts/vault.yml
+vault_db_root_password: "Replace-With-Strong-Root-Password"
+vault_db_app_password: "Replace-With-Strong-App-Password"

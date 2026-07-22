@@ -1,0 +1,30 @@
+---
+- name: 백업 파일명 생성
+  ansible.builtin.set_fact:
+    backup_filename: "labdb-{{ ansible_date_time.iso8601_basic_short }}.sql"
+
+- name: MariaDB 논리 백업 실행
+  community.docker.docker_container_exec:
+    container: "{{ db_container_name }}"
+    command: >-
+      /bin/sh -c 'mariadb-dump -uroot -p"$MARIADB_ROOT_PASSWORD"
+      --single-transaction --routines --events "${MARIADB_DATABASE}"
+      > "/backup/{{ backup_filename }}"'
+  register: backup_result
+  changed_when: true
+  no_log: "{{ hide_sensitive_logs | bool }}"
+
+- name: 호스트 백업 파일 확인
+  ansible.builtin.stat:
+    path: "{{ backup_dir }}/{{ backup_filename }}"
+  register: backup_file
+
+- name: 백업 성공 검증
+  ansible.builtin.assert:
+    that:
+      - backup_result.rc == 0
+      - backup_file.stat.exists
+      - backup_file.stat.size | int > 0
+    success_msg: >-
+      백업 완료: {{ backup_dir }}/{{ backup_filename }}
+      ({{ backup_file.stat.size }} bytes)

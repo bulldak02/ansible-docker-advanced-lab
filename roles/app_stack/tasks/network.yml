@@ -1,0 +1,14 @@
+---
+- name: 격리된 3-Tier Docker 네트워크 생성
+  community.docker.docker_network:
+    name: "{{ docker_network_name }}"
+    driver: bridge
+    enable_ipv6: false
+    attachable: false
+    ipam_config:
+      - subnet: "{{ docker_network_subnet }}"
+        gateway: "{{ docker_network_gateway }}"
+    labels:
+      managed_by: ansible
+      project: "{{ project_name }}"
+    state: present

@@ -1,0 +1,26 @@
+---
+- name: 필수 변수 및 비밀번호 검증
+  ansible.builtin.assert:
+    that:
+      - active_color in app_releases
+      - app_releases | length >= 2
+      - db_root_password | length >= 10
+      - db_app_password | length >= 10
+      - db_root_password != db_app_password
+      - web_published_port | int >= 1024
+      - web_published_port | int <= 65535
+    fail_msg: >-
+      active_color, 릴리스 정의, 포트 또는 DB 비밀번호를 확인하십시오.
+      환경 변수 LAB_DB_ROOT_PASSWORD와 LAB_DB_APP_PASSWORD는
+      서로 다른 12자 이상의 값이어야 합니다.
+
+- name: 릴리스 정의 검증
+  ansible.builtin.assert:
+    that:
+      - item.key in ['blue', 'green']
+      - item.value.version | length > 0
+      - item.value.message | length > 0
+    fail_msg: "각 릴리스에는 blue/green 키와 version/message가 필요합니다."
+  loop: "{{ app_releases | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"

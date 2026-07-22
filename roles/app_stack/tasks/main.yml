@@ -1,0 +1,28 @@
+---
+- name: 입력값 검증
+  ansible.builtin.include_tasks: validate.yml
+
+- name: 디렉터리와 애플리케이션 소스 준비
+  ansible.builtin.include_tasks: prepare.yml
+
+- name: Docker 네트워크 준비
+  ansible.builtin.include_tasks: network.yml
+
+- name: Docker 볼륨 준비
+  ansible.builtin.include_tasks: volumes.yml
+
+- name: 애플리케이션 이미지 빌드
+  ansible.builtin.include_tasks: build.yml
+
+- name: 데이터베이스 컨테이너 배포
+  ansible.builtin.include_tasks: database.yml
+
+- name: Blue-Green 애플리케이션 배포
+  ansible.builtin.include_tasks: apps.yml
+
+- name: Nginx Reverse Proxy 배포
+  ansible.builtin.include_tasks: web.yml
+
+- name: 전체 서비스 검증
+  ansible.builtin.include_tasks: verify.yml
+  when: not ansible_check_mode

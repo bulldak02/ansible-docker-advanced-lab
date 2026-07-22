@@ -1,0 +1,66 @@
+---
+- name: 검증 대상 색상 결정
+  ansible.builtin.set_fact:
+    expected_active_color: "{{ target_color | default(active_color) }}"
+
+- name: Web 포트 연결 대기
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: "{{ web_published_port }}"
+    timeout: 60
+    state: started
+
+- name: 전체 Health API 검증
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ web_published_port }}/health"
+    method: GET
+    return_content: true
+    status_code: 200
+  register: health_result
+  retries: 12
+  delay: 5
+  until: health_result.status == 200
+
+- name: 애플리케이션 및 DB 통합 검증
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ web_published_port }}/api/info"
+    method: GET
+    return_content: true
+    status_code: 200
+  register: app_info_result
+
+- name: 활성 릴리스와 DB 연결 결과 검증
+  ansible.builtin.assert:
+    that:
+      - app_info_result.json.status == 'ok'
+      - app_info_result.json.color == expected_active_color
+      - app_info_result.json.version == app_releases[expected_active_color].version
+      - app_info_result.json.database == 'connected'
+      - app_info_result.json.total_visits | int >= 1
+    success_msg: >-
+      검증 성공: {{ expected_active_color }} 릴리스
+      {{ app_info_result.json.version }}, 누적 요청
+      {{ app_info_result.json.total_visits }}회
+    fail_msg: "Web-App-DB 통합 검증에 실패했습니다."
+
+- name: DB 컨테이너에서 직접 SQL 검증
+  community.docker.docker_container_exec:
+    container: "{{ db_container_name }}"
+    argv:
+      - mariadb
+      - -u
+      - "{{ db_app_user }}"
+      - "-p{{ db_app_password }}"
+      - "{{ db_name }}"
+      - -Nse
+      - "SELECT COUNT(*) FROM visits;"
+  register: db_sql_result
+  changed_when: false
+  no_log: "{{ hide_sensitive_logs | bool }}"
+
+- name: SQL 검증 결과 확인
+  ansible.builtin.assert:
+    that:
+      - db_sql_result.rc == 0
+      - db_sql_result.stdout | trim | int >= 1
+    success_msg: "MariaDB 내부 SQL 검증 성공"

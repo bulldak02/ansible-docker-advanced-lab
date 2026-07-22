@@ -1,0 +1,9 @@
+---
+- name: RHEL Docker 3-Tier 전체 배포
+  hosts: docker_hosts
+  become: true
+  gather_facts: true
+
+  roles:
+    - role: docker_engine
+    - role: app_stack

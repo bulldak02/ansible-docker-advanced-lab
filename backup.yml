@@ -1,0 +1,9 @@
+---
+- name: MariaDB 논리 백업
+  hosts: docker_hosts
+  become: true
+  gather_facts: true
+
+  roles:
+    - role: app_stack
+      tasks_from: backup
